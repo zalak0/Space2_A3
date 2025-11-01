@@ -130,10 +130,11 @@ def simulate_fine_sun_sensor(sun_lvlh: np.ndarray,
     # Convert Euler angles to rotation matrix
     phi, theta, psi = np.deg2rad(true_attitude_deg)
     
-    noise = np.random.normal(0, np.deg2rad(noise_std_deg))
+    noise_rad = np.deg2rad(noise_std_deg)
+    noise = np.random.randn(3) * noise_rad
     
-    print(f"Sun sensor deviation: {np.deg2rad(noise_std_deg):.4f}")
-    print(f"Sun sensor noise: {noise:.4f}")
+    print(f"Sun sensor deviation: {np.deg2rad(noise_std_deg)}")
+    print(f"Sun sensor noise: {noise}")
     
     # Handle single vector or array
     if sun_lvlh.ndim == 1:

@@ -47,10 +47,11 @@ def simulate_magnetometer(mag_lvlh: np.ndarray,
     """Simulate magnetometer measurements."""
     phi, theta, psi = np.deg2rad(true_attitude_deg)
     
-    noise = np.random.normal(0, np.deg2rad(noise_std_deg))
+    noise_rad = np.deg2rad(noise_std_deg)
+    noise = np.random.randn(3) * noise_rad
     
     print(f"Magnetometer deviation: {np.deg2rad(noise_std_deg):.4f}")
-    print(f"Magnetometer noise: {noise:4f}")
+    print(f"Magnetometer noise: {noise}")
     
     if mag_lvlh.ndim == 1:
         mag_body = vt.lvlh_to_body(phi, theta, psi, mag_lvlh)
