@@ -1,4 +1,8 @@
-# magnetometer.py
+'''
+magnetometer.py
+Module is not in use. Placeholder for future magnetometer models.
+'''
+
 import numpy as np
 import vec_transforms as vt
 
@@ -45,23 +49,25 @@ def simulate_magnetometer(mag_lvlh: np.ndarray,
                           true_attitude_deg: np.ndarray,
                           noise_std_deg: float = 0.02) -> np.ndarray:
     """Simulate magnetometer measurements."""
-    phi, theta, psi = np.deg2rad(true_attitude_deg)
+    # Add noise
+    noise = np.random.randn(3) * noise_std_deg
+    true_attitude_noise = true_attitude_deg + noise
     
-    noise_rad = np.deg2rad(noise_std_deg)
-    noise = np.random.randn(3) * noise_rad
+    # Convert Euler angles to rotation matrix
+    phi, theta, psi = np.deg2rad(true_attitude_noise)
     
     print(f"Magnetometer deviation: {np.deg2rad(noise_std_deg):.4f}")
     print(f"Magnetometer noise: {noise}")
     
     if mag_lvlh.ndim == 1:
         mag_body = vt.lvlh_to_body(phi, theta, psi, mag_lvlh)
-        mag_body_noisy = mag_body + noise
+        mag_body_noisy = mag_body #+ noise
         return mag_body_noisy / np.linalg.norm(mag_body_noisy)
     else:
         N = mag_lvlh.shape[1]
         mag_body = np.zeros((3, N))
         for k in range(N):
             mag_body_k = vt.lvlh_to_body(phi, theta, psi, mag_lvlh[:, k])
-            mag_body_noisy = mag_body_k + noise
+            mag_body_noisy = mag_body_k #+ noise
             mag_body[:, k] = mag_body_noisy / np.linalg.norm(mag_body_noisy)
         return mag_body

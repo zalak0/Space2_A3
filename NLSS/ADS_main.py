@@ -87,8 +87,6 @@ def solve_attitude_determination(
             # Update estimate
             x_est = x_est + delta_x
             
-            print(f"  Iteration {iter+1}: x_est: {x_est}, Δx = {delta_x}, ||Δx|| = {np.linalg.norm(delta_x):.6e}")
-            
             # Wrap angles to [-π, π]
             x_est = np.arctan2(np.sin(x_est), np.cos(x_est))
             

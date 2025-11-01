@@ -63,3 +63,15 @@ def lvlh_to_body(phi: float, theta: float, psi: float,
     
     
     return R @ mag_lvlh
+
+def rotation_matrix_x(theta: float) -> np.ndarray:
+    """
+    Rotation matrix for rotation about the X-axis by angle theta [radians].
+    Right-hand rule: positive rotation rotates Y→Z.
+    """
+    c, s = np.cos(theta), np.sin(theta)
+    return np.array([
+        [1,  0,  0],
+        [0,  c,  s],
+        [0, -s,  c]
+    ])

@@ -14,7 +14,7 @@ def sun_vector_eci(julian_date: float) -> np.ndarray:
         Unit vector pointing from Earth to Sun in ECI frame, shape (3,)
     """
     # Days since J2000.0 epoch (Jan 1, 2000, 12:00 TT)
-    T = julian_date / 36525.0  # Julian centuries since J2000
+    T = (julian_date - 2451545)/ 36525.0  # Julian centuries since J2000
     
     # Mean longitude of the Sun (degrees)
     L = 280.460 + 36000.771 * T
@@ -113,7 +113,7 @@ def get_sun_reference_vectors_lvlh(r_eci: np.ndarray,
 
 def simulate_fine_sun_sensor(sun_lvlh: np.ndarray,
                               true_attitude_deg: np.ndarray,
-                              noise_std_deg: float = 0.01) -> np.ndarray:
+                              noise_std_deg: float = 0.0015) -> np.ndarray:
     """
     Simulate fine sun sensor measurements in body frame.
     
@@ -127,11 +127,12 @@ def simulate_fine_sun_sensor(sun_lvlh: np.ndarray,
     Returns:
         Sun measurements in body frame, shape (3, N) or (3,)
     """
-    # Convert Euler angles to rotation matrix
-    phi, theta, psi = np.deg2rad(true_attitude_deg)
+    # Add noise
+    noise = np.random.randn(3) * noise_std_deg
+    true_attitude_noise = true_attitude_deg + noise
     
-    noise_rad = np.deg2rad(noise_std_deg)
-    noise = np.random.randn(3) * noise_rad
+    # Convert Euler angles to rotation matrix
+    phi, theta, psi = np.deg2rad(true_attitude_noise)
     
     print(f"Sun sensor deviation: {np.deg2rad(noise_std_deg)}")
     print(f"Sun sensor noise: {noise}")
@@ -142,7 +143,7 @@ def simulate_fine_sun_sensor(sun_lvlh: np.ndarray,
         sun_body = vt.lvlh_to_body(phi, theta, psi, sun_lvlh)
         
         # Add noise
-        sun_body_noisy = sun_body + noise
+        sun_body_noisy = sun_body
         
         # Renormalize
         return sun_body_noisy / np.linalg.norm(sun_body_noisy)
@@ -156,9 +157,73 @@ def simulate_fine_sun_sensor(sun_lvlh: np.ndarray,
             sun_body_k = vt.lvlh_to_body(phi, theta, psi, sun_lvlh[:, k])
             
             # Add noise
-            sun_body_noisy = sun_body_k + noise
+            sun_body_noisy = sun_body_k
             
             # Renormalize
             sun_body[:, k] = sun_body_noisy / np.linalg.norm(sun_body_noisy)
         
         return sun_body
+
+# NOISE IMPLEMENTATION
+
+# import numpy as np
+
+# def random_perp_axis(u: np.ndarray) -> np.ndarray:
+#     """Return a unit axis perpendicular to u."""
+#     # pick a reference not parallel to u
+#     if abs(u[0]) < 0.9:
+#         ref = np.array([1.0, 0.0, 0.0])
+#     else:
+#         ref = np.array([0.0, 1.0, 0.0])
+#     axis = np.cross(u, ref)
+#     axis = axis / np.linalg.norm(axis)
+#     return axis
+
+# def rodrigues_rotate(u: np.ndarray, axis: np.ndarray, angle_rad: float) -> np.ndarray:
+#     """Rotate unit vector u about 'axis' by 'angle_rad' using Rodrigues' formula."""
+#     cos_a = np.cos(angle_rad)
+#     sin_a = np.sin(angle_rad)
+#     return (u * cos_a +
+#             np.cross(axis, u) * sin_a +
+#             axis * (np.dot(axis, u)) * (1 - cos_a))
+
+# def apply_sun_sensor_noise(u_true: np.ndarray,
+#                            sigma_deg: float = 0.0015,
+#                            bias_deg: float = 0.0,
+#                            misalignment_deg: np.ndarray = None,
+#                            outlier_prob: float = 0.0) -> np.ndarray:
+#     """
+#     u_true: unit sun vector in sensor frame (3,)
+#     sigma_deg: precision (1-sigma) in degrees (use 0.0015 for Eagle Plus)
+#     bias_deg: fixed bias angle (deg). Could be vector but here scalar rotation.
+#     misalignment_deg: small dict or array [rx,ry,rz] in degrees to build constant mounting rotation
+#     outlier_prob: chance of a large error sample (e.g. from albedo)
+#     """
+#     # 1) apply constant mounting misalignment (small rotation)
+#     u = u_true.copy()
+#     if misalignment_deg is not None:
+#         # Small Euler angles (degrees) -> rotation matrix (apply as small fixed rotation)
+#         rx, ry, rz = np.deg2rad(misalignment_deg)
+#         # build rotation using small-angle approximations or full rots:
+#         Rx = np.array([[1,0,0],[0,np.cos(rx),-np.sin(rx)],[0,np.sin(rx),np.cos(rx)]])
+#         Ry = np.array([[np.cos(ry),0,np.sin(ry)],[0,1,0],[-np.sin(ry),0,np.cos(ry)]])
+#         Rz = np.array([[np.cos(rz),-np.sin(rz),0],[np.sin(rz),np.cos(rz),0],[0,0,1]])
+#         R_misal = Rz @ Ry @ Rx
+#         u = R_misal @ u
+
+#     # 2) apply fixed bias as small rotation about random perp axis
+#     if bias_deg != 0.0:
+#         bias_rad = np.deg2rad(bias_deg)
+#         axis_b = random_perp_axis(u)
+#         u = rodrigues_rotate(u, axis_b, bias_rad)
+
+#     # 3) random angular noise (sigma)
+#     angle_rad = np.random.normal(0.0, np.deg2rad(sigma_deg))
+
+#     # occasional outlier (e.g. albedo) -> large angle drawn from broader distribution
+#     if outlier_prob > 0.0 and np.random.rand() < outlier_prob:
+#         angle_rad += np.random.normal(0.0, np.deg2rad(1.0))  # example 1 deg outlier
+
+#     axis = random_perp_axis(u)
+#     u_noisy = rodrigues_rotate(u, axis, angle_rad)
+#     return u_noisy / np.linalg.norm(u_noisy)
